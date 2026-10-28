@@ -13,6 +13,7 @@ from html import escape as esc
 import streamlit as st
 
 from evaluation import lift_over_random
+from explain import build_explanation
 from recommender import PlotRecommender, embeddings_available
 from tmdb_client import IMAGE_BASE, TMDBClient, TMDBError
 
@@ -59,6 +60,20 @@ def genre_names(credential: str) -> dict:
 def tmdb_related(credential: str, movie_id: int) -> list:
     c = TMDBClient(credential)
     return c.similar(movie_id) + c.recommendations(movie_id)
+
+
+@st.cache_data(ttl=86400, max_entries=500, show_spinner=False)
+def movie_keywords(credential: str, movie_id: int) -> list:
+    return TMDBClient(credential).keywords(movie_id)
+
+
+def safe_keywords(credential: str, movie_id: int) -> list:
+    """Themes are a bonus layer: if TMDB fails here, explain with fewer layers
+    instead of breaking the results page (and don't cache the failure)."""
+    try:
+        return movie_keywords(credential, movie_id)
+    except TMDBError:
+        return []
 
 
 @st.cache_data(ttl=3600, max_entries=100, show_spinner=False)
@@ -183,7 +198,26 @@ def chips(names: list) -> str:
     return "".join(f'<span class="cm-chip">{txt(n)}</span>' for n in names)
 
 
-def card_html(rec: dict, genres: dict) -> str:
+def why_html(ex: dict) -> str:
+    """The 'Why this movie?' panel. Every piece of text is escaped and whitespace-collapsed."""
+    if not ex:
+        return ""
+    rows = []
+    if ex["summary"]:
+        rows.append(f"<p>{txt(ex['summary'])}</p>")
+    if ex["terms"]:
+        rows.append(f"<p><b>Shared plot words:</b> {txt(', '.join(ex['terms']))}</p>")
+    if ex["pair"]:
+        rows.append(f"<p><b>Closest matching parts</b><br>Your movie: “{txt(ex['pair']['seed'])}”"
+                    f"<br>This movie: “{txt(ex['pair']['other'])}”</p>"
+                    "<div class='cm-note'>These show where the two plots are most alike, "
+                    "not proof of why the model chose this movie.</div>")
+    if ex["empty"]:
+        rows.append("<p>No strong overlap beyond the overall text similarity.</p>")
+    return "<details><summary>Why this movie?</summary>" + "".join(rows) + "</details>"
+
+
+def card_html(rec: dict, genres: dict, ex: dict = None) -> str:
     """One movie card. Everything that comes from TMDB or the user is HTML-escaped."""
     pct = round(min(max(rec["score"], 0.0), 1.0) * 100)
     if rec.get("poster_path"):
@@ -196,23 +230,24 @@ def card_html(rec: dict, genres: dict) -> str:
     rating = f"★ {rec['vote_average']:.1f}" if rec["vote_average"] > 0 else "Not yet rated"
     tags = chips([genres[g] for g in rec.get("genre_ids", []) if g in genres][:3])
     why = (f'<div class="cm-why"><b>Matched on:</b> {txt(", ".join(rec["shared_terms"]))}</div>'
-           if rec["shared_terms"] else "")
+           if rec["shared_terms"] and not ex else "")
     tip = f"Plot {rec['text_sim']:.0%}" + (f" · genre {rec['genre_sim']:.0%}" if rec["genre_sim"] else "")
     return ('<div class="cm-card">' + poster +
             '<div class="cm-info">'
             f'<div class="cm-t">{txt(rec["title"])}</div>'
             f'<div class="cm-m">{txt(year(rec))} · {rating}</div>'
-            f'<div>{tags}</div>{why}'
+            f'<div>{tags}</div>{why}{why_html(ex)}'
             f'<details><summary>Plot</summary><p>{txt(rec["overview"])}</p></details></div>'
             f'<div class="cm-ring" style="--p:{pct}" title="{esc(tip)}"><span>{pct}%</span></div></div>')
 
 
-def show_results(results: list, genres: dict, heading_html: str) -> None:
+def show_results(results: list, genres: dict, heading_html: str, explanations: dict = None) -> None:
     st.markdown(heading_html, unsafe_allow_html=True)
     if not results:
         st.warning("No similar movies found. Try a longer plot or a different title.")
         return
-    st.markdown('<div class="cm-grid">' + "".join(card_html(r, genres) for r in results) + "</div>",
+    ex = explanations or {}
+    st.markdown('<div class="cm-grid">' + "".join(card_html(r, genres, ex.get(r["id"])) for r in results) + "</div>",
                 unsafe_allow_html=True)
 
 
@@ -230,6 +265,15 @@ def show_evaluation(credential: str, seed: dict, rec: PlotRecommender, results: 
         'partly built in. Comparing against random picks from the same pool removes that bias. '
         'TMDB’s list is itself loose, so treat this as a sanity check, not accuracy.</div></div>',
         unsafe_allow_html=True)
+
+
+def explain_all(credential: str, seed: dict, results: list, genres: dict, rec: PlotRecommender) -> dict:
+    """One 'Why this movie?' explanation per result, keyed by movie id."""
+    seed_kw = safe_keywords(credential, seed["id"]) if seed.get("id") else []
+    encode = rec.encoder if rec.backend == "embeddings" else None   # sentence pairs need the semantic model
+    return {r["id"]: build_explanation(seed, r, genres, seed_kw,
+                                       safe_keywords(credential, r["id"]) if seed_kw else [], encode)
+            for r in results}
 
 
 def set_query(name: str) -> None:
@@ -291,8 +335,11 @@ try:
                 rec = build(credential, pages, backend, seed)
                 results = rec.recommend_by_id(seed["id"], top_n, genre_w)
                 seed_tags = chips([genres[g] for g in seed.get("genre_ids", []) if g in genres])
+                with st.spinner("Preparing explanations…"):
+                    explanations = explain_all(credential, seed, results, genres, rec)
                 show_results(results, genres,
-                             f'<div class="cm-head"><h2>Because you liked <span>{txt(seed["title"])}</span></h2>{seed_tags}</div>')
+                             f'<div class="cm-head"><h2>Because you liked <span>{txt(seed["title"])}</span></h2>{seed_tags}</div>',
+                             explanations)
                 show_evaluation(credential, seed, rec, results)
 
     with tab_plot:
@@ -300,9 +347,13 @@ try:
         plot = st.text_area("Plot / synopsis", height=160, max_chars=MAX_PLOT_CHARS, label_visibility="collapsed",
                             placeholder="Paste the plot of a brand-new movie…")
         if st.button("Match this plot") and plot.strip():
-            results = build(credential, pages, backend).recommend_by_text(plot, top_n)
-            show_results(results, genre_names(credential),
-                         '<div class="cm-head"><h2>Closest <span>matches</span> to your plot</h2></div>')
+            rec = build(credential, pages, backend)
+            results = rec.recommend_by_text(plot, top_n)
+            genres = genre_names(credential)
+            explanations = explain_all(credential, {"overview": plot, "genre_ids": []}, results, genres, rec)
+            show_results(results, genres,
+                         '<div class="cm-head"><h2>Closest <span>matches</span> to your plot</h2></div>',
+                         explanations)
 
 except TMDBError as err:
     st.error(str(err))
