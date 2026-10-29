@@ -113,6 +113,11 @@ class TMDBClient:
     def recommendations(self, movie_id: int) -> List[dict]:
         return self._list(f"/movie/{movie_id}/recommendations", pages=1)
 
+    def keywords(self, movie_id: int) -> List[str]:
+        """TMDB's thematic tags for a movie (e.g. 'dream', 'heist'); empty list if none."""
+        data = self._get(f"/movie/{movie_id}/keywords")
+        return [k["name"] for k in data.get("keywords", []) if k.get("name")]
+
     def genre_map(self) -> Dict[int, str]:
         data = self._get("/genre/movie/list")
         return {g["id"]: g["name"] for g in data.get("genres", [])}
