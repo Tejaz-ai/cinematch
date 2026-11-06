@@ -313,7 +313,7 @@ with st.expander("Options"):
             oc3.caption("Semantic matching is off. Enable it with: `pip install -r requirements-embeddings.txt`")
 backend = "embeddings" if method.startswith("Semantic") else "tfidf"
 
-tab_title, tab_plot = st.tabs(["Search by title", "Paste a plot"])
+tab_title, tab_plot = st.tabs(["Search by just title", "Paste a plot"])
 
 try:
     with tab_title:
