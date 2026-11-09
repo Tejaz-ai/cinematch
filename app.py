@@ -361,5 +361,5 @@ except TMDBError as err:
 st.markdown(
     '<div class="cm-steps"><span><i>1</i>Fetch live plots</span><span><i>2</i>Preprocess</span>'
     '<span><i>3</i>Vectorize</span><span><i>4</i>Compare</span><span><i>5</i>Recommend</span></div>'
-    '<div class="cm-foot">This product uses the TMDB API but is not endorsed or certified by TMDB.</div>',
+    '<div class="cm-foot"></div>',
     unsafe_allow_html=True)
