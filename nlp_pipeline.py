@@ -32,7 +32,7 @@ _PLOT_FILLER = {
     "last", "year", "years", "set", "left", "held", "meet", "meets", "soon", "also",
     "day", "time", "old", "first", "still", "around", "along", "begin", "begins",
     "want", "wants", "return", "returns", "help", "helps", "goes", "three", "four",
-    "small", "beautiful", "gift", "possesses", "group", "named", "called", "decides",
+    "small", "beautiful", "gift", "possesses", "group", "named", "called", "decides","very",
 }
 _stop = set(stopwords.words("english")) | _PLOT_FILLER
 
