@@ -326,7 +326,7 @@ try:
         if query.strip():
             matches = search(credential, query.strip())
             if not matches:
-                st.warning("No movie with a plot summary found for that title.")
+                st.warning("No movie with a plot summary found for the given title.")
             else:
                 labels = [f"{m['title']} ({year(m)})" for m in matches[:8]]
                 choice = st.selectbox("Did you mean", range(len(labels)), format_func=lambda i: labels[i])
@@ -338,7 +338,7 @@ try:
                 with st.spinner("Preparing explanations…"):
                     explanations = explain_all(credential, seed, results, genres, rec)
                 show_results(results, genres,
-                             f'<div class="cm-head"><h2>Because you liked <span>{txt(seed["title"])}</span></h2>{seed_tags}</div>',
+                             f'<div class="cm-head"><h2>Because you liked this you may like this too<span>{txt(seed["title"])}</span></h2>{seed_tags}</div>',
                              explanations)
                 show_evaluation(credential, seed, rec, results)
 
