@@ -3,7 +3,7 @@ from recommender import PlotRecommender
 
 MOVIES = [
     (1, "Dream Heist", "A thief who steals corporate secrets through dream-sharing technology is given the task of planting an idea in a mind."),
-    (2, "Island of Memory", "A detective investigates a disappearance at a psychiatric hospital and begins questioning his own memory and reality."),
+    (2, "Island of Memory world", "A detective investigates a disappearance at a psychiatric hospital and begins questioning his own memory and reality."),
     (3, "Digital Reality", "A hacker discovers reality is a simulated dream world controlled by machines and joins a rebellion."),
     (4, "Shark Beach", "A giant shark terrorizes a small beach town during the summer and a sheriff must hunt it down."),
     (5, "Love in Paris", "Two strangers fall in love during a romantic week in Paris and must choose between career and each other."),
