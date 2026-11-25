@@ -116,7 +116,7 @@ def build(credential: str, pages: int, backend: str, seed: dict = None) -> PlotR
         return get_recommender(credential, pages, *seed_args, backend="tfidf")
 
 
-# ------------------------------------------------------------------ styling
+# ------------------------------------------------------------------ just styling 
 STYLE = """<style>
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600&display=swap');
 html, body, .stApp, .stApp button, .stApp input, .stApp textarea {font-family: Inter, system-ui, sans-serif;}
