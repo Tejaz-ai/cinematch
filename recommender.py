@@ -23,7 +23,7 @@ from nlp_pipeline import preprocess
 
 MODEL_NAME = "all-MiniLM-L6-v2"  # ~90 MB, runs fine on CPU
 _model = None
-_EMB_CACHE: Dict[int, np.ndarray] = {}  # movie id -> embedding, so each plot is encoded once
+_EMB_CACHE: Dict[int, np.ndarray] = {}  
 
 
 def embeddings_available() -> bool:
